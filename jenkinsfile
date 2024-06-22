@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+    tools {
+        nodejs 'mynode'
+    }
+    stages {
+        stage('Git Cloning') {
+            steps {
+                echo 'github checkout'
+                checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/Sourabh1302/nodejsapp.git']])
+            }
+        }
+        stage('Build') {
+            steps {
+                echo 'Building Nodejs app'
+                sh 'npm install'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Testing'
+                sh "./node_modules/mocha/bin/_mocha --exit ./test/test.js"
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script{ 
+                    sshagent(['f7ad9e5a-ca5a-494e-b818-38e688159937']) {
+                        sh '''
+                        ssh -o StrictHostKeyChecking=no ubuntu@3.110.119.245<<EOF
+                        cd /home/ubuntu/nodeapp/
+                        git pull https://github.com/Sourabh1302/nodejsapp.git
+                        npm install
+                        sudo npm install -g pm2
+                        pm2 restart index.js || pm2 start index.js
+                        exit
+                        EOF
+                        '''
+                    }
+                }
+            }
+        }
+    }
+}
+
